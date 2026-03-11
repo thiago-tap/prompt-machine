@@ -1,37 +1,70 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 
 function App() {
   const [produto, setProduto] = useState('')
   const [publico, setPublico] = useState('')
   const [dor, setDor] = useState('')
+  const [apiKey, setApiKey] = useState('')
   const [copy, setCopy] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+
+  // Carregar a apiKey do localStorage ao iniciar
+  useEffect(() => {
+    const savedKey = localStorage.getItem('openai_api_key');
+    if (savedKey) {
+      setApiKey(savedKey);
+    }
+  }, []);
+
+  // Salvar a API Key sempre que ela mudar
+  const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const key = e.target.value;
+    setApiKey(key);
+    localStorage.setItem('openai_api_key', key);
+  }
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!produto || !publico || !dor) return;
+    
+    if (!apiKey) {
+      alert("Por favor, insira sua Chave de API da OpenAI (OpenAI API Key) para gerar a copy.");
+      return;
+    }
 
     setIsLoading(true);
     try {
-      // In production (Cloudflare), put the real worker URL here
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
-      
-      const res = await fetch(`${API_URL}/api/generate`, {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ produto, publico, dor })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({ 
+          model: 'gpt-4o-mini', // Modelo rápido, barato e muito inteligente
+          messages: [
+            {
+              role: 'system',
+              content: 'Você é um Copywriter milionário, focado em conversão e gatilhos mentais. Sua missão é criar uma copy de vendas curta, persuasiva e irresistível, voltada para anúncios e páginas de vendas de alta conversão. Use formatação limpa.'
+            },
+            {
+              role: 'user',
+              content: `Produto que eu vendo: ${produto}\nMeu Público-Alvo: ${publico}\nDor principal que eles têm: ${dor}\n\nEscreva a copy agora.`
+            }
+          ]
+        })
       });
 
       const data = await res.json();
       
       if (!res.ok) {
-        throw new Error(data.error || 'Erro ao gerar copy.');
+        throw new Error(data.error?.message || 'Erro ao comunicar com a OpenAI.');
       }
       
-      setCopy(data.copy);
+      setCopy(data.choices[0].message.content);
     } catch (err: any) {
-      alert(`Erro de conexão com IA: ${err.message}`);
+      alert(`Erro de conexão com a IA: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -45,7 +78,7 @@ function App() {
   return (
     <div className="app-wrapper">
       <header className="header">
-        <span className="badge">Inteligência Artificial</span>
+        <span className="badge">Inteligência Artificial Integrada</span>
         <h1 className="t-gradient">Máquina de Vendas</h1>
         <p className="t-sub">
           Apenas insira os dados do seu produto e deixe a IA trabalhar criando uma copy de conversão extrema.
@@ -56,6 +89,22 @@ function App() {
         <div className="glass-card">
           <form onSubmit={handleGenerate}>
             
+            <div className="api-key-section">
+              <label style={{color: '#a855f7', fontWeight: 600}}>Sua OpenAI API Key (Chave Secreta)</label>
+              <input 
+                type="password" 
+                className="form-input" 
+                placeholder="sk-proj-..." 
+                value={apiKey}
+                onChange={handleApiKeyChange}
+                required
+                style={{ borderColor: 'rgba(168, 85, 247, 0.4)' }}
+              />
+              <p style={{fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginTop: '4px', marginBottom: '16px'}}>
+                Sua chave fica salva apenas no seu navegador. Não guardamos em nenhum servidor.
+              </p>
+            </div>
+
             <div className="form-field">
               <label>O que você vende? (Seu Produto / Resumo)</label>
               <input 
@@ -116,14 +165,14 @@ function App() {
               <p>Sua Copy milionária aparecerá aqui.</p>
             </div>
           ) : (
-            <>
-              <div className="result-content">
+             <div className="result-wrapper">
+              <div className="result-content" style={{ whiteSpace: 'pre-wrap' }}>
                 {copy}
               </div>
-              <button className="btn-copy-action" onClick={copyToClipboard}>
+              <button className="btn-copy-action" onClick={copyToClipboard} style={{ marginTop: '1rem' }}>
                 ✓ Copiar Texto para a Área de Transferência
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>
