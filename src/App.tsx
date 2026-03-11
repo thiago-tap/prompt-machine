@@ -6,14 +6,23 @@ function App() {
   const [publico, setPublico] = useState('')
   const [dor, setDor] = useState('')
   const [apiKey, setApiKey] = useState('')
+  const [model, setModel] = useState('gpt-4o-mini')
   const [copy, setCopy] = useState('')
+  const [history, setHistory] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
-  // Carregar a apiKey do localStorage ao iniciar
+  // Carregar dados salvos ao iniciar
   useEffect(() => {
     const savedKey = localStorage.getItem('openai_api_key');
-    if (savedKey) {
-      setApiKey(savedKey);
+    if (savedKey) setApiKey(savedKey);
+
+    const savedHistory = localStorage.getItem('copy_history');
+    if (savedHistory) {
+      try {
+        setHistory(JSON.parse(savedHistory));
+      } catch (e) {
+        console.error("Erro ao carregar histórico", e);
+      }
     }
   }, []);
 
@@ -42,7 +51,7 @@ function App() {
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({ 
-          model: 'gpt-4o-mini', // Modelo rápido, barato e muito inteligente
+          model: model,
           messages: [
             {
               role: 'system',
@@ -62,7 +71,14 @@ function App() {
         throw new Error(data.error?.message || 'Erro ao comunicar com a OpenAI.');
       }
       
-      setCopy(data.choices[0].message.content);
+      const generatedCopy = data.choices[0].message.content;
+      setCopy(generatedCopy);
+      
+      // Atualizar Histórico
+      const newHistory = [generatedCopy, ...history].slice(0, 5);
+      setHistory(newHistory);
+      localStorage.setItem('copy_history', JSON.stringify(newHistory));
+
     } catch (err: any) {
       alert(`Erro de conexão com a IA: ${err.message}`);
     } finally {
@@ -70,8 +86,8 @@ function App() {
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(copy);
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
     alert('Copy copiada para usar na sua campanha!');
   };
 
@@ -103,6 +119,19 @@ function App() {
               <p style={{fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginTop: '4px', marginBottom: '16px'}}>
                 Sua chave fica salva apenas no seu navegador. Não guardamos em nenhum servidor.
               </p>
+            </div>
+
+            <div className="form-field">
+              <label>Escolha o Cérebro da IA (Dica de Ouro)</label>
+              <select 
+                className="form-input" 
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                style={{ padding: '12px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                <option value="gpt-4o-mini" style={{color: 'black'}}>GPT-4o Mini (Ultra-rápido, +Barato, Excelente p/ Anúncios)</option>
+                <option value="gpt-4o" style={{color: 'black'}}>GPT-4o (Máxima Inteligência, Textos Longos e Complexos)</option>
+              </select>
             </div>
 
             <div className="form-field">
@@ -154,6 +183,24 @@ function App() {
               )}
             </button>
           </form>
+
+          {/* Seção de Histórico */}
+          {history.length > 0 && (
+            <div className="history-section" style={{ marginTop: '30px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '20px' }}>
+              <h3 style={{ fontSize: '0.9rem', color: '#a855f7', marginBottom: '12px' }}>Histórico Recente (Últimas 5)</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {history.map((item, idx) => (
+                  <button 
+                    key={idx} 
+                    onClick={() => setCopy(item)}
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '6px', padding: '10px', color: '#a1a1aa', fontSize: '0.75rem', textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                  >
+                    {item.substring(0, 60)}...
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="glass-card result-card">
@@ -169,7 +216,7 @@ function App() {
               <div className="result-content" style={{ whiteSpace: 'pre-wrap' }}>
                 {copy}
               </div>
-              <button className="btn-copy-action" onClick={copyToClipboard} style={{ marginTop: '1rem' }}>
+              <button className="btn-copy-action" onClick={() => copyToClipboard(copy)} style={{ marginTop: '1rem' }}>
                 ✓ Copiar Texto para a Área de Transferência
               </button>
             </div>
