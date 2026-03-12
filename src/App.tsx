@@ -44,24 +44,15 @@ function App() {
 
     setIsLoading(true);
     try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      // Chamada para a nova API segura (Pages Functions)
+      const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
-          model: model,
-          messages: [
-            {
-              role: 'system',
-              content: 'Você é um Copywriter milionário, focado em conversão e gatilhos mentais. Sua missão é criar uma copy de vendas curta, persuasiva e irresistível, voltada para anúncios e páginas de vendas de alta conversão. Use formatação limpa.'
-            },
-            {
-              role: 'user',
-              content: `Produto que eu vendo: ${produto}\nMeu Público-Alvo: ${publico}\nDor principal que eles têm: ${dor}\n\nEscreva a copy agora.`
-            }
-          ]
+          prompt: `Produto que eu vendo: ${produto}\nMeu Público-Alvo: ${publico}\nDor principal que eles têm: ${dor}\n\nEscreva a copy agora.`,
+          systemPrompt: 'Você é um Copywriter milionário, focado em conversão e gatilhos mentais. Sua missão é criar uma copy de vendas curta, persuasiva e irresistível, voltada para anúncios e páginas de vendas de alta conversão. Use formatação limpa.'
         })
       });
 
